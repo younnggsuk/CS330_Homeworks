@@ -186,9 +186,14 @@ class MAML:
             accuracies.append(util.score(logits, labels))
             
             grads = autograd.grad(outputs=loss, inputs=list(parameters.values()), create_graph=train)
-            for grad, layer_name in zip(grads, parameters.keys()):
-                with torch.no_grad():
-                    parameters[layer_name] -= self._inner_lrs[layer_name] * grad
+            
+            # Don't use inplace operation as below, otherwise the grad will be None
+            # (inner learning rate can't be learned)
+            # for grad, layer_name in zip(grads, parameters.keys()):
+            #     parameters[layer_name] -= self._inner_lrs[layer_name] * grad 
+                    
+            for grad, (layer_name, param) in zip(grads, parameters.items()):
+                parameters[layer_name] = param - self._inner_lrs[layer_name] * grad
             
         with torch.no_grad():
             logits = self._forward(images, parameters)
@@ -497,7 +502,7 @@ if __name__ == '__main__':
                         help='number of support examples per class in a task')
     parser.add_argument('--num_query', type=int, default=15,
                         help='number of query examples per class in a task')
-    parser.add_argument('--num_inner_steps', type=int, default=5,
+    parser.add_argument('--num_inner_steps', type=int, default=1,
                         help='number of inner-loop updates')
     parser.add_argument('--inner_lr', type=float, default=0.4,
                         help='inner-loop learning rate initialization')
